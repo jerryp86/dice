@@ -1,6 +1,6 @@
 const ALLOWED_ORIGIN = "https://jerryp86.github.io";
 const MODEL = "gpt-4.1-mini";
-const DAILY_LIMIT = 5;
+const DAILY_LIMIT = 6;
 const OUTPUT_SCHEMA = {
   type: "object",
   properties: {
