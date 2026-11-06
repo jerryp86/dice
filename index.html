@@ -54,7 +54,7 @@ $('rollBtn').onclick=()=>{if(busy)return;const question=$('q').value.trim();if(!
 function shareText(){const {o,q}=last;return '提問：'+(q||'自由探索')+'\n星骰：'+o.p.n+' × '+o.s.n+' × '+o.h.n+'\n\n'+o.p.m+'\n'+o.s.m+'\n生活領域：'+o.h.f+'\n整合：將'+o.p.k+'帶入'+o.h.n+'，以'+o.s.n+'的特質實踐。\n行動：記下事實、採取一個小步驟，並依回饋調整。\n\n反思：下一個最誠實的小步驟是什麼？\n'+location.href}
 $('shareBtn').onclick=async()=>{try{if(navigator.share&&/Mobi|Android/i.test(navigator.userAgent))await navigator.share({title:'星骰解讀',text:shareText()});else{await navigator.clipboard.writeText(shareText());toast()}}catch(e){if(e.name!=='AbortError'){const x=document.createElement('textarea');x.value=shareText();document.body.append(x);x.select();document.execCommand('copy');x.remove();toast()}}};function toast(){$('toast').classList.add('on');setTimeout(()=>$('toast').classList.remove('on'),1700)}
 
-const DEEP_API_URL='https://YOUR-WORKER.workers.dev';
+const DEEP_API_URL='https://astro-dice-deep-reading.jerryp86.workers.dev/';
 $('deepBtn').onclick=async()=>{
  if(!last)return;
  const btn=$('deepBtn');btn.disabled=true;btn.textContent='✧ 正在深度解析…';
