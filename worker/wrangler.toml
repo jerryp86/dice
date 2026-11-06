@@ -1,0 +1,7 @@
+name = "astro-dice-deep-reading"
+main = "src/index.js"
+compatibility_date = "2026-11-06"
+
+[[kv_namespaces]]
+binding = "USAGE_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
