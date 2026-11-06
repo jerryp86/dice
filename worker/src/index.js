@@ -5,14 +5,15 @@ const OUTPUT_SCHEMA = {
   type: "object",
   properties: {
     core_message: { type: "string" },
-    planet_insight: { type: "string" },
-    zodiac_insight: { type: "string" },
-    house_insight: { type: "string" },
-    integration: { type: "string" },
-    action_steps: { type: "string" },
-    closing_message: { type: "string" }
+    tensions: { type: "string" },
+    opportunities: { type: "string" },
+    risks: { type: "string" },
+    scenarios: { type: "string" },
+    prioritized_steps: { type: "string" },
+    signals: { type: "string" },
+    conclusion: { type: "string" }
   },
-  required: ["core_message", "planet_insight", "zodiac_insight", "house_insight", "integration", "action_steps", "closing_message"],
+  required: ["core_message", "tensions", "opportunities", "risks", "scenarios", "prioritized_steps", "signals", "conclusion"],
   additionalProperties: false
 };
 
@@ -62,6 +63,7 @@ export default {
     const planet = body.planet || {};
     const zodiac = body.zodiac || {};
     const house = body.house || {};
+    const standard = body.standard || {};
     if (!question) return json({ error: "請先輸入想探索的問題。" }, 400, ALLOWED_ORIGIN);
 
     const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -75,21 +77,25 @@ export default {
     const safe = value => String(value || "").slice(0, 500);
     const prompt = [
       "你是務實顧問型星骰分析師。使用繁體中文，語氣清楚、直接、尊重，不宿命、不恐嚇、不講空泛鼓勵。",
-      "本功能是基本建議的深化版：基本建議已提供快速方向；此處要補上推理、風險、判斷條件與可執行方案，不可只是把基本建議拉長。",
+      "本功能必須延伸下方標準解讀，補足推理、情境、風險、判斷條件與優先方案；不要改寫或重複標準答案，也不可只把它拉長。",
       "使用者問題：" + question,
+      "標準解讀問題類型：" + safe(standard.category),
+      "標準解讀摘要：" + safe(standard.summary),
+      "標準解讀行動步驟：" + (Array.isArray(standard.steps) ? standard.steps.slice(0, 3).map(safe).join("；") : ""),
       "行星：" + safe(planet.name) + "；象徵：" + safe(planet.keyword) + "；參考：" + safe(planet.meaning),
       "星座：" + safe(zodiac.name) + "；元素：" + safe(zodiac.element) + "；象徵：" + safe(zodiac.keyword) + "；參考：" + safe(zodiac.meaning),
       "宮位：" + safe(house.name) + "；生活領域：" + safe(house.domain) + "；參考：" + safe(house.meaning),
       "先辨識問題類型（例如感情、職涯、財務、人際、學習或生活選擇），再用三骰象徵分析該情境。若問題資訊不足，不可自行編造背景；請明確說明哪些是推論、哪些仍需使用者查證。",
-      "請依序輸出七個欄位：",
-      "1. core_message：先直接回應使用者的問題，給出有條件、有依據的方向，不要只說順其自然或保持開放。",
-      "2. planet_insight：說明行星象徵的核心需求、動力或阻力，並連結使用者問題中的具體情境。",
-      "3. zodiac_insight：說明星座呈現的行為模式，指出一項可運用的優勢及一項可能的盲點。",
-      "4. house_insight：說明宮位對應的現實生活領域，指出使用者可以檢視的具體事項。",
-      "5. integration：整合三骰，說明彼此如何支持或衝突，提出最重要的機會、風險及一個需要驗證的關鍵假設。",
-      "6. action_steps：提供三個彼此不同、低風險且可執行的行動。每一步都要包含「做什麼、怎麼做、觀察什麼或何時檢視」。避免只寫多溝通、多觀察、多學習等空話；盡可能給出具體產出、問題或檢視期限。",
-      "7. closing_message：用一句簡潔、有洞察力的提醒收尾，不重複前文。",
-      "內容要有資訊密度，不為湊字數重複骰象字典。各欄位以約 50 至 100 個中文字為原則，action_steps 可較長；整體以清楚易讀為先。",
+      "請依序輸出八個欄位：",
+      "1. core_message：延伸標準解讀，針對這個問題提出有條件的方向及其根據。",
+      "2. tensions：指出至少一組需求、行動方式或現實條件間的深層拉扯，說明三骰如何形成這種張力。",
+      "3. opportunities：指出問題類型下可把握的具體機會，以及成立所需條件。",
+      "4. risks：列出現實風險、常見盲點和可降低風險的方法；不要將星象當證據。",
+      "5. scenarios：提供兩種合理情境（條件、可能發展、對應做法），不得宣稱預測必然發生。",
+      "6. prioritized_steps：列出 2 至 3 個有順序的具體行動，每步包含做法、期限或交付物及依據；說明先後理由。",
+      "7. signals：列出可觀察的正向／警示訊號，以及明確複查時間與繼續、調整或停止的判準。",
+      "8. conclusion：給出理由清楚的結論，說明目前最值得優先做什麼、為何如此，以及什麼新資訊會改變判斷。",
+      "內容要有資訊密度，不重複骰象字典。各欄位約 40 至 90 個中文字，scenarios、prioritized_steps 與 signals 可較長；整體清楚易讀。",
       "不可宣稱知道第三者真實想法、不可保證未來結果。骰象只作為反思工具，不是事實證據。涉及醫療、法律、投資或重大財務決策時，不提供專業結論，提醒結合現實資料及合格專業意見。"
     ].join("\n");
 
@@ -114,7 +120,7 @@ export default {
           },
           verbosity: "medium"
         },
-        max_output_tokens: 1100,
+        max_output_tokens: 1400,
         store: false
       })
     });

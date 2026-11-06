@@ -49,9 +49,94 @@ const houses=[
 ['第十二宮・內在','Ⅻ','潛意識、隱藏、內在探索','關於休息、獨處、潛意識、未被看見的情緒與幕後狀態。適合暫時放慢腳步，整理心緒並留意長期忽略的感受。']
 ].map(([n,s,f,d])=>({n,s,f,d}));
 const pick=a=>a[Math.floor(Math.random()*a.length)],$=id=>document.getElementById(id);let last=null,busy=false;
-function render(o,q){last={o,q};[o.p,o.s,o.h].forEach((x,i)=>{$('die'+i).querySelector('.symbol').textContent=x.s;$('name'+i).textContent=x.n});const subject=q?'「'+q+'」':'你此刻心中浮現的主題';const domain=o.h.f;const basicCore='這次問題的重點落在「'+domain+'」。'+o.p.n+'提示你先釐清「'+o.p.k+'」是否正是目前的核心；'+o.s.n+'則提醒你用更有意識的方式處理，而不是只靠慣性反應。';const basicAction='先做一件可驗證的小事：把目前情況分成「已知事實、尚未確認、自己能控制」三欄，選出一項最重要的待確認事項，在接下來一週內取得答案，再決定下一步。';$('interpretation').innerHTML='<div class="chips"><span class="chip">✦ '+o.p.n+'</span><span class="chip">'+o.s.s+' '+o.s.n+' · '+o.s.e+'象</span><span class="chip">'+o.h.s+' '+o.h.n+'</span></div><h3>核心判斷</h3><p>'+basicCore+'針對'+subject+'，目前適合先釐清條件，再採取可調整的行動；不要只憑一時感受做不可逆決定。</p><h3>值得留意的地方</h3><p>'+o.p.n+'的主題是「'+o.p.k+'」；'+o.s.n+'的表現方式是「'+o.s.k+'」。優勢是可以運用這種特質處理問題，盲點則是不要讓它變成單一反應。請對照實際事件，確認這項推論是否符合現況。</p><h3>可以採取的行動</h3><p>'+basicAction+'</p><div class="prompt">✧ 決策提醒：做完這一步後，哪一項新資訊會真正改變你的判斷？</div>';$('result').classList.add('show');$('shareBtn').hidden=false;$('deepBtn').hidden=false;$('deepResult').hidden=true}
+const categoryRules=[
+ ['感情與伴侶',['感情','戀愛','伴侶','男友','女友','曖昧','分手','婚姻','復合','約會','喜歡','交往','前任']],
+ ['職涯與工作',['工作','職涯','職場','老闆','升遷','轉職','離職','面試','創業','公司','專案','求職']],
+ ['財務與資源',['財務','金錢','收入','存款','投資','理財','借錢','貸款','預算','花費','買房','薪水','債務']],
+ ['人際與合作',['人際','朋友','合作','合夥','團隊','溝通','衝突','相處','客戶','夥伴','同學','家人']],
+ ['學習與成長',['學習','讀書','考試','進修','技能','成長','課程','研究','練習','證照','論文']],
+ ['自我探索與生活選擇',[]]
+];
+function classifyQuestion(q){const text=(q||'').toLowerCase();return categoryRules.find(([name,words])=>words.some(word=>text.includes(word)))?.[0]||categoryRules.at(-1)[0]}
+const lenses={
+ '感情與伴侶':{focus:'互動是否互相、需求有沒有說清楚、界線是否被尊重',check:'觀察雙方是否都願意安排時間、回應需求並承擔承諾，而非只看一句話或一次情緒反應',try:'用一個具體事件描述你的感受與需要，提出一項可協商的安排，並給對方明確回應空間',signal:'接下來兩週，留意對方是否以持續行動回應，以及你是否能自在表達不同意見'},
+ '職涯與工作':{focus:'工作目標、可用資源、責任邊界與可衡量成果',check:'盤點實際職責、時間、回報和決策權，確認卡點是技能、流程、資源還是期待不一致',try:'選一個兩週內能交付的成果，先和相關人確認完成標準、優先順序與所需支援',signal:'檢視交付是否如期、返工是否減少，以及投入和回報是否符合你設定的底線'},
+ '財務與資源':{focus:'現金流、風險承受度、資源共享條件與長期負擔',check:'核對金額、期限、費用、最壞情況及退出方式；骰象不能替代財務資料或專業建議',try:'先列出每月收支與可承受損失，暫緩不可逆承諾，逐項查證條款及替代方案',signal:'以帳目、現金流和書面條件檢視方案是否仍在可負擔範圍，重大投資先諮詢合格專業人士'},
+ '人際與合作':{focus:'共同目標、分工、資訊落差與彼此界線',check:'對照明確約定和實際行動，找出哪項責任未定義、資訊沒有同步或期待不同',try:'把共同任務寫成負責人、交付物、期限三欄，約一個短會確認各自理解',signal:'下一個檢查點確認交付是否完成、問題是否及早提出，以及合作負擔是否平衡'},
+ '學習與成長':{focus:'學習目標、方法、回饋頻率和可展示的能力',check:'比較目前投入與可觀察成果，分辨是方法不合、練習不足還是目標太大',try:'訂一個一週的小型練習，產出可檢查的作品或測驗結果，請一位可信任的人給具體回饋',signal:'一週後比較錯誤類型、完成時間或測驗表現，再據此調整練習方法'},
+ '自我探索與生活選擇':{focus:'真正重視的價值、精力限制、可控選項與下一步',check:'區分外界期待、可驗證事實和自己能控制的部分，辨認哪一項價值正在拉扯',try:'列出兩個可行選項各自的成本與收益，挑一個低風險的小實驗在七天內試行',signal:'記錄實際感受、耗時和結果，七天後依證據保留、修改或停止這個做法'}
+};
+function questionPlaybook(q,category){
+ const rules=[
+  [/溝通|怎麼談|如何談|對話|誤會|不回訊息/,'關係溝通',[
+   '挑一件最近發生、可描述時間與情境的對話，分開寫下對方實際說了什麼、你的感受和你的推測。',
+   '用「當＿＿發生時，我感到＿＿；我希望下次可以＿＿」開場，只提出一項可做到的改變，並邀請對方說明他的需要。',
+   '談完後一週內觀察是否出現約定的改變，也留意你們能否在不同意時仍把話說完；若談話不安全，先找可信任的人協助。'
+  ]],
+  [/承諾|曖昧|復合|分手|繼續.*關係|要不要.*交往/,'關係承諾',[
+   '先寫清楚你所說的「承諾」具體指什麼（例如排他、固定見面或共同規劃），避免只用感覺判斷。',
+   '直接提出一個可回答的問題，說明你能接受的安排與期限；把對方的明確回答和後續行動分開記錄。',
+   '約定兩至四週後回看：雙方是否都按說好的方式投入、你的界線是否被尊重；若只有口頭承諾，依實際行動調整決定。'
+  ]],
+  [/流程|效率|專案|交接|返工|工作.*改善|改善.*工作/,'工作流程',[
+   '把最近一次工作從接手到交付畫成 4 至 6 步，標出等待最久、最常返工的一處，並用一個實例確認原因。',
+   '只挑一個瓶頸做兩週小測試（例如加交接清單或固定回覆時段），先和受影響同事確認責任人及完成標準。',
+   '每週記錄等待時間、錯誤或返工次數；兩週後若未改善或把負擔轉嫁給別人，撤回或調整做法。'
+  ]],
+  [/轉職|離職|求職|面試|升遷|換工作|新工作/,'職涯選擇',[
+   '列出你換工作的三個必要條件（工作內容、收入下限、工時或成長），並標註哪些已確認、哪些只是推測。',
+   '本週找一個目標職缺核對實際職責、主管期待與薪酬區間，更新履歷中一項能量化的成果；先驗證市場再做離職決定。',
+   '比較至少兩個選項的收入、時間、風險和可逆性；在拿到書面條件且預備金符合自己的底線前，不作不可逆承諾。'
+  ]],
+  [/投資|股票|基金|加密|理財|報酬|資產配置/,'投資評估',[
+   '先寫出投資期限、用途和最多可承受的損失金額；若這筆錢短期要用或不能承受虧損，先不要投入高波動標的。',
+   '查明產品費用、流動性、集中度和最壞情境，至少用兩個可信來源核對；不要因短期漲跌或他人保證而加碼。',
+   '設定投入上限與檢視日期，記錄基準和退出條件；重大金額或不熟悉的產品，先向合格財務專業人士確認。'
+  ]],
+  [/預算|花費|支出|存款|存錢|收入|薪水|債務|貸款|借錢/,'收支整理',[
+   '整理最近 30 天的收入、固定支出、變動支出與債務到期日，標出實際數字，不用估算取代帳目。',
+   '選一項可調整的支出設定一個月上限，或先比較貸款的年利率、總費用與還款額；保留基本生活與緊急預備金。',
+   '月底對照預算和實際現金流，確認是否有逾期或新增高利債務；涉及借貸或重大財務決策時，先取得專業意見。'
+  ]],
+  [/衝突|吵架|相處不好|不合|被排擠|界線|不尊重/,'人際衝突',[
+   '選一個最近的具體事件，記下對方做了什麼、造成什麼影響；先不推斷動機，確認這是否重複發生。',
+   '在合適且安全的時機說明一項影響和一項界線，例如「臨時改期限會影響交付，請至少提前一天告知」，並聽取對方回應。',
+   '接下來兩次互動留意界線是否被遵守、問題能否直接討論；若持續出現羞辱、威脅或報復，尋求主管、人資或可信任者協助。'
+  ]],
+  [/合作|合夥|團隊|分工|同事|主管|客戶/,'合作分工',[
+   '把目前共同任務列成「負責人、交付物、期限、依賴事項」四欄，找出一項責任不清或資訊未同步的地方。',
+   '安排一次 15 分鐘對齊，只確認優先順序、完成標準及遇到阻礙時通知誰；會後用文字留下共識。',
+   '在下一個交付點核對是否按時完成、返工原因和工作量分配；若連續兩次失準，重新談資源或縮小範圍。'
+  ]],
+  [/考試|測驗|讀書|證照|考研/,'考試準備',[
+   '做一份限時小測或抽一份歷屆題，按錯誤原因分類（觀念、粗心、時間），不要只重讀熟悉的章節。',
+   '依最常見的一類錯誤安排三次短練習，每次做完寫出正確解題步驟；把需要補強的問題整理成清單。',
+   '一週後用同難度題目再測，對比正確率和完成時間；若無改善，改練習方法或找老師釐清卡住的概念。'
+  ]],
+  [/學習|技能|練習|課程|研究|成長/,'技能學習',[
+   '把想學的能力改寫成一個可展示的小成果（例如完成一頁報告、一段程式或一次簡報），訂在一週內完成。',
+   '先做一次基準版本，請熟悉該技能的人針對一個具體標準給回饋，再安排兩次有目標的修正練習。',
+   '比較前後作品在錯誤、速度或清晰度上的變化；保留有效練法，若沒有進步就縮小技能範圍或更換教材。'
+  ]]
+ ];
+ const match=rules.find(([pattern])=>pattern.test(q||''));
+ if(match)return {focus:match[1],steps:match[2]};
+ return {focus:category,steps:null};
+}
+function interpret(o,q){
+ const category=classifyQuestion(q),lens=lenses[category],playbook=questionPlaybook(q,category),subject=q?`「${q}」`:'你目前想探索的生活主題';
+ const planetLine=`行星 ${o.p.n} 把「${o.p.k}」放在核心：先確認這個需求、動力或限制在${category}的情境中如何出現。`;
+ const zodiacLine=`星座 ${o.s.n} 提供「${o.s.k}」的處理方式；可運用其「${o.s.k.split('、')[0]}」面向，同時留意行動太快、太慢或過度依賴單一做法。`;
+ const houseLine=`宮位 ${o.h.n} 將焦點落在${o.h.f}。這使抽象感受回到可檢查的現實面：${lens.focus}。`;
+ const strengths=`三骰合看，${o.p.n}指出「為何在意」，${o.s.n}指出「如何回應」，${o.h.n}指出「在哪裡落實」。它們的交會點是：以${o.s.k.split('、')[0]}處理${o.h.f}中的${o.p.k.split('、')[0]}議題。`;
+ const tension=`可能的拉扯是：想滿足${o.p.k.split('、')[0]}，卻用過度依賴「${o.s.k.split('、')[0]}」的方式，忽略${o.h.f}中的實際條件。先查證：${lens.check}。星骰是反思線索，不是對他人想法或未來的證據。`;
+ const steps=(playbook.steps||[`優先｜針對「${q||'目前的選擇'}」，分開記下已知事實、待確認資訊和自己能控制的部分；用${o.p.n}「${o.p.k}」的線索找出最關鍵的一項。`,`接著｜以${o.s.n}「${o.s.k}」的方式，對照${o.h.n}（${o.h.f}）相關的兩個可行選項，選一個低風險做法先試七天，並記下實際結果。`,`複查｜七天後按${o.h.n}領域中可觀察的結果檢視：${lens.signal}；若新事實推翻原先假設，就改變做法。`]).map((step,i)=>i===0?`${step} 以${o.p.n}「${o.p.k.split('、')[0]}」決定先核對哪個焦點。`:i===1?`${step} 運用${o.s.n}「${o.s.k.split('、')[0]}」的做法，避免只靠慣性反應。`:`${step} 把檢查放回${o.h.n}的${o.h.f}現況，不以感覺代替結果。`);
+ const diceNudge=`以${o.p.n}的「${o.p.k.split('、')[0]}」找出行動的焦點，採用${o.s.n}「${o.s.k.split('、')[0]}」的方式執行，並在${o.h.n}（${o.h.f}）檢查結果。`;
+ return {category,focus:playbook.focus||category,subject,planetLine,zodiacLine,houseLine,strengths,tension,steps,diceNudge};
+}
+function render(o,q){last={o,q};[o.p,o.s,o.h].forEach((x,i)=>{$('die'+i).querySelector('.symbol').textContent=x.s;$('name'+i).textContent=x.n});const r=interpret(o,q);const e=s=>escapeDeep(s);$('interpretation').innerHTML='<div class="chips"><span class="chip">✦ '+e(o.p.n)+'</span><span class="chip">'+e(o.s.s+' '+o.s.n+' · '+o.s.e+'象')+'</span><span class="chip">'+e(o.h.s+' '+o.h.n)+'</span><span class="chip">'+e(r.category)+'</span></div><h3>你的問題落點</h3><p>你問的是 '+e(r.subject)+'，本解讀歸在「'+e(r.category)+'」，具體焦點是「'+e(r.focus)+'」。骰象提供可檢查的假設，請用你掌握的實際情況核對。</p><h3>三骰各自提供什麼線索</h3><p>'+e(r.planetLine)+'<br>'+e(r.zodiacLine)+'<br>'+e(r.houseLine)+'</p><h3>三骰合看：機會與拉扯</h3><p>'+e(r.strengths)+'<br>'+e(r.tension)+'</p><h3>接下來可以做的事</h3><ol>'+r.steps.map(step=>'<li>'+e(step)+'</li>').join('')+'</ol><div class="prompt">✧ 檢核問題：哪一項新事實會讓你改變目前的判斷或做法？</div>';last.reading=r;$('result').classList.add('show');$('shareBtn').hidden=false;$('deepBtn').hidden=false;$('deepResult').hidden=true}
 $('rollBtn').onclick=()=>{if(busy)return;const question=$('q').value.trim();if(!question){$('questionError').style.display='block';$('q').focus();return;}$('questionError').style.display='none';busy=true;$('rollBtn').disabled=true;$('diceRow').classList.add('rolling');let n=0,t=setInterval(()=>{[$('die0'),$('die1'),$('die2')].forEach((d,i)=>d.querySelector('.symbol').textContent=[pick(planets),pick(signs),pick(houses)][i].s);if(++n===9){clearInterval(t);$('diceRow').classList.remove('rolling');render({p:pick(planets),s:pick(signs),h:pick(houses)},question);$('rollBtn').disabled=false;busy=false;$('result').scrollIntoView({behavior:'smooth',block:'nearest'})}},85)};
-function shareText(){const {o,q}=last;return '提問：'+(q||'自由探索')+'\n星骰：'+o.p.n+' × '+o.s.n+' × '+o.h.n+'\n\n'+o.p.m+'\n'+o.s.m+'\n生活領域：'+o.h.f+'\n整合：將'+o.p.k+'帶入'+o.h.n+'，以'+o.s.n+'的特質實踐。\n行動：記下事實、採取一個小步驟，並依回饋調整。\n\n反思：下一個最誠實的小步驟是什麼？\n'+location.href}
+function shareText(){const {o,q,reading:r}=last;return `提問：${q||'自由探索'}\n問題類型：${r.category}｜情境焦點：${r.focus}\n星骰：${o.p.n} × ${o.s.n} × ${o.h.n}\n\n${r.planetLine}\n${r.zodiacLine}\n${r.houseLine}\n\n三骰整合：${r.strengths}\n需要留意：${r.tension}\n\n行動建議：\n${r.steps.map((step,i)=>`${i+1}. ${step}`).join('\n')}\n\n星骰是自我探索線索，不是預言或專業建議。\n${location.href}`}
 $('shareBtn').onclick=async()=>{try{if(navigator.share&&/Mobi|Android/i.test(navigator.userAgent))await navigator.share({title:'星骰解讀',text:shareText()});else{await navigator.clipboard.writeText(shareText());toast()}}catch(e){if(e.name!=='AbortError'){const x=document.createElement('textarea');x.value=shareText();document.body.append(x);x.select();document.execCommand('copy');x.remove();toast()}}};function toast(){$('toast').classList.add('on');setTimeout(()=>$('toast').classList.remove('on'),1700)}
 
 const DEEP_API_URL='https://astro-dice-deep-reading.jerryp86.workers.dev/';
@@ -65,15 +150,16 @@ $('deepBtn').onclick=async()=>{
    question:q,
    planet:{name:o.p.n,keyword:o.p.k,meaning:o.p.m},
    zodiac:{name:o.s.n,element:o.s.e,keyword:o.s.k,meaning:o.s.m},
-   house:{name:o.h.n,domain:o.h.f,meaning:o.h.d}
+   house:{name:o.h.n,domain:o.h.f,meaning:o.h.d},
+   standard:{category:last.reading.category,summary:last.reading.strengths+' '+last.reading.tension,steps:last.reading.steps}
   })});
   const data=await response.json();
   if(!response.ok)throw new Error(data.error||'暫時無法完成解析，請稍後再試。');
   const sections=[
-   ['核心訊息',data.core_message],['行星：事情的核心動力',data.planet_insight],
-   ['星座：事情的表現方式',data.zodiac_insight],['宮位：生活中的落點',data.house_insight],
-   ['三骰整合：優勢與盲點',data.integration],['可實踐的三個步驟',data.action_steps],
-   ['給你的提醒',data.closing_message]
+   ['延伸標準解讀',data.core_message],['更深層的拉扯',data.tensions],
+   ['可把握的機會',data.opportunities],['風險與邊界',data.risks],
+   ['可能情境與應對',data.scenarios],['優先行動方案',data.prioritized_steps],
+   ['觀察訊號與複查標準',data.signals],['結論與判斷理由',data.conclusion]
   ];
   $('deepContent').innerHTML=sections.map(([title,value])=>'<section class="deep-section"><h3>'+title+'</h3><p>'+escapeDeep(value)+'</p></section>').join('');
   $('deepResult').scrollIntoView({behavior:'smooth',block:'start'});
