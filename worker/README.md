@@ -5,9 +5,9 @@
 ## 成本控制設計
 
 - 模型：`gpt-4.1-mini`，以較低成本提供結構化解讀。
-- 每個來源 IP 每日最多 5 次 AI 深度解析；一般三骰解讀不受影響。
+- 每個來源 IP 每日最多 6 次 AI 深度解析；一般三骰解讀不受影響。
 - 僅在使用者主動點選「AI 深度解析」時呼叫 API。
-- 限制問題長度、輸出 token，並以 JSON Schema 固定七段回應。
+- 限制問題長度、輸出 token，並以 JSON Schema 固定八段回應：延伸結論、深層拉扯、機會、風險、情境、排序行動、觀察訊號／複查標準、理由結論。
 - 建議同時在 OpenAI Platform 設定月度預算／用量通知。IP 次數限制不是完整的全球預算上限。
 
 ## 部署步驟
@@ -34,7 +34,7 @@
 }
 ```
 
-成功時回傳七個欄位：`core_message`、`planet_insight`、`zodiac_insight`、`house_insight`、`integration`、`action_steps`、`closing_message`。
+成功時回傳八個欄位：`core_message`、`tensions`、`opportunities`、`risks`、`scenarios`、`prioritized_steps`、`signals`、`conclusion`。前端同時傳入標準解讀摘要和步驟，讓 AI 延伸既有建議。
 
 ## 安全與限制
 
