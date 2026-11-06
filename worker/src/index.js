@@ -111,7 +111,12 @@ export default {
     });
 
     if (!response.ok) {
-      return json({ error: "AI 暫時無法回應，請稍後再試。" }, 502, ALLOWED_ORIGIN);
+      const upstreamError = await response.text();
+      console.error("OpenAI API request failed:", response.status, upstreamError.slice(0, 2000));
+      return json({
+        error: "OpenAI API 請求失敗（HTTP " + response.status + "）。請將這個狀態碼提供給管理者。",
+        upstream_status: response.status
+      }, 502, ALLOWED_ORIGIN);
     }
     const result = await response.json();
     const outputText = (result.output || [])
