@@ -2,44 +2,79 @@
 
 此目錄提供星骰網站的安全 AI 後端。OpenAI API Key 僅儲存在 Cloudflare Worker Secret，不會放進 GitHub Pages 前端。
 
-## 成本控制設計
+## 現有功能與成本監控
 
-- 模型：`gpt-4.1-mini`，以較低成本提供結構化解讀。
+- 模型：`gpt-4.1-mini`，使用 OpenAI Responses API，`store: false`。
 - 每個來源 IP 每日最多 6 次 AI 深度解析；一般三骰解讀不受影響。
-- 僅在使用者主動點選「AI 深度解析」時呼叫 API。
-- 限制問題長度、輸出 token，並以 JSON Schema 固定八段回應：延伸結論、深層拉扯、機會、風險、情境、排序行動、觀察訊號／複查標準、理由結論。
-- 建議同時在 OpenAI Platform 設定月度預算／用量通知。IP 次數限制不是完整的全球預算上限。
+- 沿用既有 `USAGE_KV` Namespace；不需要新建資料庫或更換 KV binding。
+- 每次上游 API 嘗試會寫入一筆獨立 KV event（成功、上游錯誤、網路錯誤或無效回應），避免多人同時請求時共用每日彙總 key 的讀改寫碰撞。
+- 記錄每日 API 呼叫數、成功／失敗數、Input／Cached Input／Output／Total Tokens，以及依模型費率估算的 USD 費用。
+- 使用量事件保留 90 天；原本 IP 日額度 key 仍保留 48 小時。
+- 管理報表端點：`GET /admin/usage`；可加 `?month=YYYY-MM` 查詢月份。
+- 報表以 UTC 日界線彙總；Cloudflare KV 為 eventual consistency，最新事件可能延遲約 60 秒出現。
+- 月預算只產生警戒狀態，不會自動阻擋 API 呼叫；真正帳單以 OpenAI Dashboard 為準。
 
-## 部署步驟
+## 模型費率與估算方式
 
-1. 在 Cloudflare 建立 KV Namespace，名稱可用 `ASTRO_DICE_USAGE`。
-2. 複製 Namespace ID，填入 `worker/wrangler.toml` 的 `REPLACE_WITH_YOUR_KV_NAMESPACE_ID`。
-3. 安裝 Wrangler（本機需 Node.js）：`npm install -g wrangler`。
-4. 登入 Cloudflare：`wrangler login`。
-5. 在 `worker` 目錄設定 API Key Secret：`wrangler secret put OPENAI_API_KEY`，貼上 OpenAI API Key。
-6. 部署：`wrangler deploy`。
-7. 部署成功後，複製 Worker 網址，例如 `https://astro-dice-deep-reading.<你的帳號>.workers.dev`。
-8. 編輯根目錄 `index.html`，將 `DEEP_API_URL` 改成該網址，並在網址最後加上 `/`（例如 `https://...workers.dev/`）。提交後等待 GitHub Pages 更新。
+目前程式定價表（每 1,000,000 tokens）：
 
-## API
+| 類型 | USD |
+|---|---:|
+| Input | $0.40 |
+| Cached Input | $0.10 |
+| Output | $1.60 |
 
-前端向 Worker 根路徑送出 POST JSON：
+費用估算公式：
+`((Input - Cached Input) × 0.40 + Cached Input × 0.10 + Output × 1.60) / 1,000,000`
 
-```json
-{
-  "question": "我想探索目前的工作方向",
-  "planet": { "name": "土星", "keyword": "責任、限制、規範", "meaning": "..." },
-  "zodiac": { "name": "摩羯座", "element": "土", "keyword": "紀律、責任、目標", "meaning": "..." },
-  "house": { "name": "第十宮・事業", "domain": "事業、成就、社會地位", "meaning": "..." }
-}
+費率依 OpenAI 官方定價頁面核對，更新日期記錄於程式 `PRICING_DATE`。模型價格若有變動，需同步更新該常數。這是依 API usage 回傳值估算的模型 token 費用，不是實際帳單；其他產品費用、稅金、折扣或帳戶層級調整不一定包含在內。
+
+## Cloudflare 手動設定
+
+在 Cloudflare Dashboard → Workers & Pages → `astro-dice-deep-reading` → Settings → Variables and Secrets：
+
+**Secrets**
+1. 保留現有 `OPENAI_API_KEY`，不要把值貼到 GitHub、程式碼或日誌。
+2. 新增 `USAGE_ADMIN_TOKEN`：使用密碼管理器產生至少 32 bytes 的隨機高熵字串。此 token 只供管理者查詢報表，切勿放進前端。
+
+**Variables**
+1. 新增 `MONTHLY_BUDGET_USD`：你的月預算美元數字，例如 `10`（請自行決定）。
+2. 可選 `BUDGET_WARNING_RATIO`：預警比例，預設 `0.8`（即預算 80%）。
+
+保存設定後重新部署／確認 Worker 使用最新設定。不要建立第二個 KV Namespace；確認既有 binding 名稱仍為 `USAGE_KV`。
+
+## 查詢報表
+
+用管理者工具或 curl 對 Worker URL 發送 GET，並在 Authorization header 傳入 Secret：
+
+```bash
+curl -H "Authorization: Bearer $USAGE_ADMIN_TOKEN" \
+  "https://astro-dice-deep-reading.<你的帳號>.workers.dev/admin/usage"
 ```
 
-成功時回傳八個欄位：`core_message`、`tensions`、`opportunities`、`risks`、`scenarios`、`prioritized_steps`、`signals`、`conclusion`。前端同時傳入標準解讀摘要和步驟，讓 AI 延伸既有建議。
+指定月份：
 
-## 安全與限制
+```bash
+curl -H "Authorization: Bearer $USAGE_ADMIN_TOKEN" \
+  "https://astro-dice-deep-reading.<你的帳號>.workers.dev/admin/usage?month=2026-11"
+```
 
-- 僅允許 `https://jerryp86.github.io` 網站來源。
-- OpenAI Key 不會傳回瀏覽器。
-- 不儲存 OpenAI Responses（`store: false`）。
-- KV 依 IP 與日期計算每日次數；同一 IP 的多人會共用額度，使用 VPN 或更換網路也可能改變額度。
-- 若要公開大量使用，建議再加上 Cloudflare Turnstile、全站每日總額度與更嚴格的濫用防護。
+回傳包含 `daily` 每日明細、`totals` 月累計、`budget.status`（`ok`、`warning`、`budget_reached` 或 `not_configured`），以及費率資訊。報表不含 IP、提問內容、API Key 或管理 token。
+
+## 部署
+
+1. 安裝 Wrangler：`npm install -g wrangler`。
+2. 登入 Cloudflare：`wrangler login`。
+3. 在 `worker` 目錄部署：`wrangler deploy`。
+4. 確認 Worker 的既有 `USAGE_KV` binding 指向原本 Namespace。
+5. 保留 GitHub Pages 前端的既有 Worker URL；本次不需要修改 `index.html`。
+
+## API 與安全
+
+- 僅允許 `https://jerryp86.github.io` 網站來源呼叫一般解析端點。
+- OpenAI Key 僅由 Worker Secret 提供，絕不回傳瀏覽器。
+- 上游錯誤日誌只記錄狀態碼，不記錄完整錯誤 body、請求內容或 headers。
+- 管理端點不開放 CORS，並要求獨立的 `USAGE_ADMIN_TOKEN`。
+- 原有 IP 日額度 key 維持 SHA-256 雜湊 IP 與每日日期組合；每日 6 次限制不變。
+- KV 的讀取／寫入限制不是嚴格原子交易；同一 IP 同時發出多個請求時，KV eventual consistency 仍可能造成競爭。若需要嚴格全域硬上限，應另評估 Durable Objects 或具原子性的 rate limiter。
+- 若要公開大量使用，建議再加 Cloudflare Turnstile、全站每日總額度與更嚴格的濫用防護。
